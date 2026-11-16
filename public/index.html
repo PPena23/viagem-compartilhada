@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cobrança de Viagens</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--tx:#1b2430;--mut:#6b7684;--pri:#0b7a5b;--pri2:#e3f4ee;--bad:#c0392b;--warn:#b7791f;--bd:#dde3ea}
+@media(prefers-color-scheme:dark){:root{--bg:#10151b;--card:#1a222c;--tx:#e8edf2;--mut:#93a0ae;--pri:#35c493;--pri2:#173a2f;--bad:#ff7a6b;--warn:#f0b64d;--bd:#2c3846}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,Segoe UI,Roboto,sans-serif;padding-bottom:70px}
+header{background:var(--pri);color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+header h1{margin:0;font-size:18px}header small{opacity:.85}
+header button{background:rgba(255,255,255,.2);color:#fff;border:0;border-radius:8px;padding:6px 10px;cursor:pointer}
+main{max-width:900px;margin:0 auto;padding:12px 16px}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--bd);display:flex;z-index:5}
+nav button{flex:1;border:0;background:none;color:var(--mut);padding:12px 4px;font-size:13px;cursor:pointer}
+nav button.on{color:var(--pri);font-weight:700;border-top:3px solid var(--pri);margin-top:-1px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin:10px 0}
+h2{font-size:17px;margin:6px 0}
+label{display:block;font-size:13px;color:var(--mut);margin:8px 0 2px}
+input,select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font-size:16px}
+button.b{background:var(--pri);color:#fff;border:0;border-radius:8px;padding:10px 14px;font-size:15px;cursor:pointer}
+button.b.s{background:var(--pri2);color:var(--pri)}
+button.b.d{background:none;color:var(--bad);border:1px solid var(--bad)}
+button.b.sm{padding:6px 10px;font-size:13px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row>*{flex:1}.row>.fix{flex:none}
+.mut{color:var(--mut);font-size:13px}
+.tog{display:flex;gap:6px}
+.tog button{flex:1;padding:12px 6px;border-radius:8px;border:1px solid var(--bd);background:var(--bg);color:var(--mut);font-size:14px;cursor:pointer}
+.tog button.on{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:600}
+.tog.xl button{padding:22px 6px;font-size:17px}
+.pill{display:inline-block;border-radius:99px;padding:2px 10px;font-size:12px;font-weight:600}
+.p-pend{background:#fdecc8;color:#7a5200}.p-sent{background:#dbe8ff;color:#1f4a9c}.p-paid{background:var(--pri2);color:var(--pri)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border:1px solid var(--bd);padding:5px 6px;text-align:center;white-space:nowrap}
+th{background:var(--pri2)}td:first-child,th:first-child{text-align:left;position:sticky;left:0;background:var(--card)}
+.scroll{overflow-x:auto}
+.big{font-size:22px;font-weight:700}
+.warn{color:var(--warn);font-size:13px}.err{color:var(--bad);font-size:14px;margin-top:8px}
+pre{white-space:pre-wrap;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:10px;font:14px/1.4 inherit;margin:8px 0}
+.hide{display:none}
+.login{max-width:380px;margin:40px auto}
+</style>
+</head>
+<body>
+<header><div><h1>🚗 Cobrança de Viagens</h1><small id="rota"></small></div><button id="sair" class="hide" onclick="logout()">Sair</button></header>
+<main id="app"></main>
+<nav id="nav" class="hide"></nav>
+<script>
+// ---------- API ----------
+let token=localStorage.getItem('vg_token')||'',S=null,tab='',selDate='',periodIdx=null,editId=null,busy=false;
+async function api(method,url,body){
+  const r=await fetch(url,{method,headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined});
+  const j=await r.json().catch(()=>({}));
+  if(r.status===401&&token){token='';localStorage.removeItem('vg_token');S=null;await boot();throw new Error(j.error||'Sessão expirada')}
+  if(!r.ok)throw new Error(j.error||'Erro');
+  return j;
+}
+async function act(method,url,body){try{await api(method,url,body);await load()}catch(e){toast(e.message)}}
+async function load(){S=await api('GET','/api/state');render()}
+
+// ---------- Datas / util ----------
+function iso(d){const z=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())}
+const parse=s=>new Date(s+'T12:00:00');
+const addD=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return iso(d)};
+const diffD=(a,b)=>Math.round((parse(a)-parse(b))/864e5);
+const dm=s=>{const [y,m,d]=s.split('-');return d+'/'+m};
+const DOW=['dom','seg','ter','qua','qui','sex','sáb'];
+const dow=s=>DOW[parse(s).getDay()];
+const money=v=>'R$ '+v.toFixed(2).replace('.',',');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(m){const e=document.createElement('div');e.textContent=m;e.style.cssText='position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:8px 16px;border-radius:99px;z-index:99';document.body.appendChild(e);setTimeout(()=>e.remove(),2200)}
+async function copy(txt){try{await navigator.clipboard.writeText(txt)}catch(e){const t=document.createElement('textarea');t.value=txt;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove()}toast('Copiado!')}
+function dl(txt,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type}));a.download=name;a.click()}
+
+// ---------- Períodos / cálculo ----------
+const len=()=>+S.cfg.ciclo;
+const idxOf=s=>Math.floor(diffD(s,S.cfg.anchor)/len());
+const pStart=i=>addD(S.cfg.anchor,i*len());
+const pDays=i=>{const a=pStart(i),r=[];for(let k=0;k<len();k++){const d=addD(a,k);const w=parse(d).getDay();if(w>=1&&w<=5)r.push(d)}return r};
+const pLabel=i=>{const d=pDays(i);return dm(d[0])+' a '+dm(d[d.length-1])};
+const pKey=(i,pid)=>pStart(i)+'|'+pid;
+const fareOf=p=>p.tarifa>0?p.tarifa:S.cfg.fare;
+const legs=(d,pid)=>{const t=S.trips[d+'|'+pid];return t?{ida:!!t.ida,volta:!!t.volta,fare:t.fare,idaAt:t.idaAt,voltaAt:t.voltaAt,idaBy:t.idaBy,voltaBy:t.voltaBy}:{ida:false,volta:false,fare:0}};
+function personPeriod(pid,i){let n=0,total=0,rows=[];for(const d of pDays(i)){const t=S.trips[d+'|'+pid];if(!t)continue;const c=(t.ida?1:0)+(t.volta?1:0);if(!c)continue;n+=c;const v=c*t.fare;total+=v;rows.push({d,ida:t.ida,volta:t.volta,v})}return{n,total,rows}}
+function pending(pid,upto){let tot=0;const ds=Object.keys(S.trips).map(k=>k.split('|')[0]).sort();if(!ds.length)return{tot:0};for(let i=idxOf(ds[0]);i<upto;i++){const r=personPeriod(pid,i);const pay=S.pay[pKey(i,pid)];if(r.total>0&&!(pay&&pay.paid))tot+=r.total}return{tot}}
+
+// ---------- Mensagem (motorista) ----------
+const phoneBR=p=>{let d=(p||'').replace(/\D/g,'');if(d.length<=11)d='55'+d;return d};
+function buildMsg(p,i){
+  const r=personPeriod(p.id,i),pend=pending(p.id,i),L=[];
+  L.push('Olá, '+p.nome.split(' ')[0]+'! 👋','Cobrança das viagens '+S.cfg.origem+' ⇄ '+S.cfg.destino,'Período: '+pLabel(i),'');
+  for(const x of r.rows)L.push('• '+dow(x.d)+' '+dm(x.d)+' ('+(x.ida&&x.volta?'ida + volta':x.ida?'só ida':'só volta')+'): '+money(x.v));
+  if(!r.rows.length)L.push('(sem viagens no período)');
+  L.push('','Viagens: '+r.n+' trecho(s)','*Total do período: '+money(r.total)+'*');
+  if(pend.tot>0)L.push('Em aberto de períodos anteriores: '+money(pend.tot),'*Total a pagar: '+money(r.total+pend.tot)+'*');
+  if(S.cfg.pix)L.push('','Pix: '+S.cfg.pix);
+  if(S.cfg.msgFim)L.push('',S.cfg.msgFim);
+  return L.join('\n');
+}
+function sendWA(pid,i){const p=S.pass.find(x=>x.id===pid);window.open('https://wa.me/'+phoneBR(p.tel)+'?text='+encodeURIComponent(buildMsg(p,i)),'_blank');act('POST','/api/pay',{pid,start:pStart(i),field:'sent',val:true})}
+const setStatus=(i,pid,f,v)=>act('POST','/api/pay',{pid,start:pStart(i),field:f,val:v});
+
+// ---------- Login ----------
+async function boot(){
+  document.getElementById('nav').classList.add('hide');document.getElementById('sair').classList.add('hide');
+  if(token){try{await load();return}catch(e){token=''}}
+  const st=await api('GET','/api/status');
+  document.getElementById('rota').textContent='';
+  document.getElementById('app').innerHTML=st.setup?`
+  <div class="card login"><h2>Primeiro acesso — motorista</h2><div class="mut">Crie a senha do motorista (mín. 6 caracteres). Só quem tiver essa senha vê os dados de todos.</div>
+  <label>Senha do motorista</label><input id="lp" type="password"><div class="err" id="le"></div>
+  <div style="margin-top:12px"><button class="b" onclick="doSetup()">Criar senha</button></div></div>`:`
+  <div class="card login"><h2>Entrar</h2>
+  <label>Telefone (passageiro) ou <b>motorista</b></label><input id="lu" autocapitalize="none" placeholder="(16) 99999-9999">
+  <label>Senha / PIN</label><input id="lp" type="password" onkeydown="if(event.key==='Enter')doLogin()"><div class="err" id="le"></div>
+  <div style="margin-top:12px"><button class="b" onclick="doLogin()">Entrar</button></div></div>`;
+}
+async function doSetup(){try{await api('POST','/api/setup',{pin:lp.value});document.getElementById('le').textContent='';await boot()}catch(e){le.textContent=e.message}}
+async function doLogin(){try{const r=await api('POST','/api/login',{user:lu.value.trim().toLowerCase()==='motorista'?'motorista':lu.value,pin:lp.value});token=r.token;localStorage.setItem('vg_token',token);tab='';await load()}catch(e){le.textContent=e.message}}
+async function logout(){try{await api('POST','/api/logout')}catch(e){}token='';localStorage.removeItem('vg_token');S=null;boot()}
+
+// ---------- Motorista ----------
+const activePass=()=>S.pass.filter(p=>p.ativo!==false);
+function vLanc(){
+  const a=activePass(),wk=parse(selDate).getDay();
+  let h='<div class="card"><h2>Embarques do dia</h2><div class="row"><input type="date" id="dt" value="'+selDate+'"><button class="b s sm fix" onclick="selDate=S.today;render()">Hoje</button></div>'
+   +'<div class="mut" style="margin-top:6px">'+dow(selDate)+' · '+dm(selDate)+' · Tarifa por trecho: '+money(S.cfg.fare)+'</div>'
+   +(wk===0||wk===6?'<div class="warn">⚠ Fim de semana — o carro só roda de segunda a sexta.</div>':'')
+   +(!(S.cfg.fare>0)?'<div class="warn">⚠ Defina o valor da passagem em Config.</div>':'')
+   +'<div class="mut" style="margin-top:6px">✔ = embarque confirmado. O passageiro também confirma pelo próprio celular; você pode corrigir aqui.</div></div>';
+  if(!a.length)return h+'<div class="card">Cadastre passageiros na aba Passageiros.</div>';
+  h+='<div class="row"><button class="b s" onclick="act(\'POST\',\'/api/day\',{date:selDate,val:true})">Todos: ida + volta</button><button class="b d" onclick="act(\'POST\',\'/api/day\',{date:selDate,val:false})">Limpar dia</button></div>';
+  let tot=0;
+  for(const p of a){
+    const l=legs(selDate,p.id),c=(l.ida?1:0)+(l.volta?1:0),v=c*(l.fare||fareOf(p));tot+=v;
+    const who=(x)=>l[x]&&l[x+'At']?'<br><small>'+(l[x+'By']==='p'?'passageiro':'motorista')+' '+l[x+'At']+'</small>':'';
+    h+='<div class="card"><div class="row"><b>'+esc(p.nome)+'</b><span class="fix mut">'+(c?money(v):'—')+'</span></div><div class="tog" style="margin-top:8px">'
+     +'<button class="'+(l.ida?'on':'')+'" onclick="act(\'POST\',\'/api/trip\',{date:selDate,pid:\''+p.id+'\',leg:\'ida\',val:'+!l.ida+'})">'+(l.ida?'✔ ':'')+'Ida'+who('ida')+'</button>'
+     +'<button class="'+(l.volta?'on':'')+'" onclick="act(\'POST\',\'/api/trip\',{date:selDate,pid:\''+p.id+'\',leg:\'volta\',val:'+!l.volta+'})">'+(l.volta?'✔ ':'')+'Volta'+who('volta')+'</button></div></div>';
+  }
+  return h+'<div class="card">Total do dia: <span class="big">'+money(tot)+'</span></div>';
+}
+function vPass(){
+  const e=S.pass.find(x=>x.id===editId)||{};
+  let h='<div class="card"><h2>'+(editId?'Editar passageiro':'Novo passageiro')+'</h2>'
+   +'<label>Nome</label><input id="pn" value="'+esc(e.nome||'')+'">'
+   +'<label>Telefone com DDD (é o login do passageiro)</label><input id="pt" inputmode="tel" placeholder="(16) 99999-9999" value="'+esc(e.tel||'')+'">'
+   +'<label>'+(editId?'Novo PIN (deixe vazio para manter)':'PIN de acesso do passageiro (mín. 4 dígitos)')+'</label><input id="pp" inputmode="numeric" autocomplete="off">'
+   +'<label>Modo de contato</label><select id="pc">'+[['whatsapp','WhatsApp'],['ligacao','Ligação'],['sms','SMS']].map(([v,t])=>'<option value="'+v+'"'+((e.contato||'whatsapp')===v?' selected':'')+'>'+t+'</option>').join('')+'</select>'
+   +'<label>Tarifa própria por trecho (opcional)</label><input id="pf" inputmode="decimal" value="'+(e.tarifa||'')+'">'
+   +'<div class="row" style="margin-top:12px"><button class="b" onclick="savePass()">Salvar</button>'+(editId?'<button class="b s" onclick="editId=null;render()">Cancelar</button>':'')+'</div></div>'
+   +'<h2>Passageiros ('+S.pass.length+')</h2>';
+  for(const p of S.pass)h+='<div class="card"><div class="row"><div><b>'+esc(p.nome)+'</b>'+(p.ativo===false?' <span class="mut">(inativo)</span>':'')+'<div class="mut">'+esc(p.tel)+' · '+({whatsapp:'WhatsApp',ligacao:'Ligação',sms:'SMS'}[p.contato]||'')+(p.tarifa>0?' · tarifa '+money(p.tarifa):'')+'</div></div>'
+   +'<div class="fix row"><button class="b s sm" onclick="editId=\''+p.id+'\';render();scrollTo(0,0)">Editar</button><button class="b s sm" onclick="act(\'POST\',\'/api/pass\',{...S.pass.find(x=>x.id===\''+p.id+'\'),ativo:'+(p.ativo===false)+'})">'+(p.ativo===false?'Ativar':'Inativar')+'</button></div></div></div>';
+  return h;
+}
+async function savePass(){
+  const b={id:editId||undefined,nome:pn.value,tel:pt.value,pin:pp.value,contato:pc.value,tarifa:pf.value.replace(',','.')};
+  try{await api('POST','/api/pass',b);editId=null;await load();toast('Salvo')}catch(e){toast(e.message)}
+}
+function vCob(){
+  if(periodIdx===null)periodIdx=idxOf(S.today);
+  const i=periodIdx,days=pDays(i);
+  let h='<div class="card"><div class="row"><button class="b s sm fix" onclick="periodIdx--;render()">◀</button><div style="text-align:center"><b>'+pLabel(i)+'</b><div class="mut">ciclo de '+len()+' dias · seg–sex</div></div><button class="b s sm fix" onclick="periodIdx++;render()">▶</button></div>'
+   +'<div class="row" style="margin-top:8px"><button class="b s sm" onclick="periodIdx=idxOf(S.today);render()">Período atual</button><button class="b s sm" onclick="exportCSV('+i+')">⬇ Planilha (CSV)</button></div></div>';
+  h+='<div class="card scroll"><table><tr><th>Passageiro</th>'+days.map(d=>'<th>'+dow(d)+'<br>'+dm(d)+'</th>').join('')+'<th>Trechos</th><th>Total</th></tr>';
+  let g=0;
+  for(const p of S.pass){const r=personPeriod(p.id,i);if(p.ativo===false&&!r.n)continue;g+=r.total;
+    h+='<tr><td>'+esc(p.nome)+'</td>'+days.map(d=>{const l=legs(d,p.id);return '<td>'+(l.ida&&l.volta?'I+V':l.ida?'I':l.volta?'V':'·')+'</td>'}).join('')+'<td>'+r.n+'</td><td><b>'+money(r.total)+'</b></td></tr>'}
+  h+='<tr><td><b>Total geral</b></td><td colspan="'+(days.length+1)+'"></td><td><b>'+money(g)+'</b></td></tr></table><div class="mut" style="margin-top:6px">I = ida · V = volta · I+V = ida e volta.</div></div>';
+  for(const p of S.pass){
+    const r=personPeriod(p.id,i),pend=pending(p.id,i);if(!r.n&&!pend.tot)continue;
+    const st=S.pay[pKey(i,p.id)]||{};
+    const stp=st.paid?'<span class="pill p-paid">Pago</span>':st.sent?'<span class="pill p-sent">Enviada</span>':'<span class="pill p-pend">Pendente</span>';
+    h+='<div class="card"><div class="row"><div><b>'+esc(p.nome)+'</b> '+stp+'<div class="mut">'+r.n+' trecho(s)'+(pend.tot>0?' · <span style="color:var(--bad)">+ '+money(pend.tot)+' em aberto antes</span>':'')+'</div></div><div class="fix big">'+money(r.total+pend.tot)+'</div></div>'
+     +'<div class="row" style="margin-top:8px"><button class="b sm" onclick="sendWA(\''+p.id+'\','+i+')">📲 WhatsApp</button>'
+     +'<button class="b s sm" onclick="copy(buildMsg(S.pass.find(x=>x.id===\''+p.id+'\'),'+i+'))">📋 Copiar texto</button>'
+     +'<button class="b s sm" onclick="document.getElementById(\'m_'+p.id+'\').classList.toggle(\'hide\')">👁 Ver</button>'
+     +'<button class="b '+(st.paid?'d':'s')+' sm" onclick="setStatus('+i+',\''+p.id+'\',\'paid\','+!st.paid+')">'+(st.paid?'Desmarcar pago':'✔ Marcar pago')+'</button></div>'
+     +'<pre class="hide" id="m_'+p.id+'">'+esc(buildMsg(p,i))+'</pre></div>';
+  }
+  return h;
+}
+function exportCSV(i){
+  const days=pDays(i),rows=[['Passageiro','Telefone',...days.map(d=>dow(d)+' '+dm(d)),'Trechos','Total (R$)','Status']];
+  for(const p of S.pass){const r=personPeriod(p.id,i);if(!r.n)continue;const st=S.pay[pKey(i,p.id)]||{};
+    rows.push([p.nome,p.tel||'',...days.map(d=>{const l=legs(d,p.id);return l.ida&&l.volta?'ida+volta':l.ida?'ida':l.volta?'volta':''}),r.n,r.total.toFixed(2).replace('.',','),st.paid?'Pago':st.sent?'Enviada':'Pendente'])}
+  dl('﻿'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(';')).join('\r\n'),'cobranca_'+pStart(i)+'.csv','text/csv');
+}
+function vCfg(){
+  const c=S.cfg;
+  return '<div class="card"><h2>Rota e valores</h2>'
+  +'<div class="row"><div><label>Origem</label><input id="co" value="'+esc(c.origem)+'"></div><div><label>Destino</label><input id="cd" value="'+esc(c.destino)+'"></div></div>'
+  +'<label>Valor da passagem por trecho (R$) — cada ida ou volta</label><input id="cf" inputmode="decimal" value="'+c.fare+'">'
+  +'<label>Ciclo de cobrança</label><select id="cc"><option value="7"'+(c.ciclo==7?' selected':'')+'>7 dias (semanal)</option><option value="14"'+(c.ciclo==14?' selected':'')+'>14 dias (quinzenal)</option></select>'
+  +'<label>Início do ciclo (qualquer dia — usa a segunda-feira dessa semana)</label><input type="date" id="ca" value="'+c.anchor+'">'
+  +'<label>Chave Pix (vai na mensagem)</label><input id="cp" value="'+esc(c.pix)+'">'
+  +'<label>Texto final da mensagem (opcional)</label><input id="cm" value="'+esc(c.msgFim)+'">'
+  +'<div style="margin-top:12px"><button class="b" onclick="saveCfg()">Salvar</button></div></div>';
+}
+async function saveCfg(){
+  try{await api('POST','/api/cfg',{fare:cf.value.replace(',','.'),origem:co.value,destino:cd.value,ciclo:cc.value,anchor:ca.value,pix:cp.value,msgFim:cm.value});periodIdx=null;await load();toast('Salvo')}catch(e){toast(e.message)}
+}
+
+// ---------- Passageiro ----------
+function vHoje(){
+  const d=S.today,wk=parse(d).getDay(),me=S.me,l=legs(d,me.id),c=(l.ida?1:0)+(l.volta?1:0);
+  let h='<div class="card"><h2>Olá, '+esc(me.nome.split(' ')[0])+'!</h2><div class="mut">'+dow(d)+' · '+dm(d)+' · '+esc(S.cfg.origem)+' ⇄ '+esc(S.cfg.destino)+'</div></div>';
+  if(wk===0||wk===6)return h+'<div class="card warn">Hoje não há viagem (o carro roda de segunda a sexta).</div>';
+  const at=(x)=>l[x]&&l[x+'At']?'<br><small>confirmado '+l[x+'At']+'</small>':'';
+  h+='<div class="card"><div class="mut" style="margin-bottom:8px">Toque para confirmar seu embarque (toque de novo para desfazer):</div><div class="tog xl">'
+   +'<button class="'+(l.ida?'on':'')+'" onclick="boarding(\'ida\','+!l.ida+')">'+(l.ida?'✔ ':'')+'IDA'+at('ida')+'<br><small>'+esc(S.cfg.origem)+' › '+esc(S.cfg.destino)+'</small></button>'
+   +'<button class="'+(l.volta?'on':'')+'" onclick="boarding(\'volta\','+!l.volta+')">'+(l.volta?'✔ ':'')+'VOLTA'+at('volta')+'<br><small>'+esc(S.cfg.destino)+' › '+esc(S.cfg.origem)+'</small></button></div>'
+   +'<div class="mut" style="margin-top:10px">Hoje: '+(c?money(c*l.fare):'—')+'</div></div>';
+  return h;
+}
+const boarding=(leg,val)=>act('POST','/api/boarding',{leg,val});
+function vMinha(){
+  if(periodIdx===null)periodIdx=idxOf(S.today);
+  const i=periodIdx,me=S.me,r=personPeriod(me.id,i),pend=pending(me.id,i),st=S.pay[pKey(i,me.id)]||{};
+  const stp=st.paid?'<span class="pill p-paid">Pago</span>':st.sent?'<span class="pill p-sent">Cobrança enviada</span>':'<span class="pill p-pend">Em aberto</span>';
+  let h='<div class="card"><div class="row"><button class="b s sm fix" onclick="periodIdx--;render()">◀</button><div style="text-align:center"><b>'+pLabel(i)+'</b></div><button class="b s sm fix" onclick="periodIdx++;render()">▶</button></div></div>'
+   +'<div class="card"><div class="row"><div>'+stp+'<div class="mut">'+r.n+' trecho(s) no período</div></div><div class="fix big">'+money(r.total)+'</div></div>'
+   +(pend.tot>0?'<div class="warn" style="margin-top:6px">Em aberto de períodos anteriores: '+money(pend.tot)+'</div>':'')
+   +(S.cfg.pix?'<div class="mut" style="margin-top:6px">Pix: <b>'+esc(S.cfg.pix)+'</b></div>':'')+'</div>'
+   +'<div class="card scroll"><table><tr><th>Dia</th><th>Ida</th><th>Volta</th><th>Valor</th></tr>';
+  for(const x of r.rows)h+='<tr><td>'+dow(x.d)+' '+dm(x.d)+'</td><td>'+(x.ida?'✔':'·')+'</td><td>'+(x.volta?'✔':'·')+'</td><td>'+money(x.v)+'</td></tr>';
+  if(!r.rows.length)h+='<tr><td colspan="4" class="mut">Sem viagens neste período</td></tr>';
+  return h+'</table></div>';
+}
+
+// ---------- Render ----------
+function render(){
+  if(!S)return;
+  if(!selDate)selDate=S.today;
+  const drv=S.role==='driver';
+  const tabs=drv?[['lanc','Embarques'],['cob','Cobrança'],['pass','Passageiros'],['cfg','Config']]:[['hoje','Hoje'],['minha','Minha cobrança']];
+  if(!tabs.some(t=>t[0]===tab))tab=tabs[0][0];
+  const nav=document.getElementById('nav');nav.classList.remove('hide');document.getElementById('sair').classList.remove('hide');
+  nav.innerHTML=tabs.map(([k,t])=>'<button data-t="'+k+'" class="'+(k===tab?'on':'')+'">'+t+'</button>').join('');
+  nav.querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render();scrollTo(0,0)});
+  document.getElementById('rota').textContent=S.cfg.origem+' ⇄ '+S.cfg.destino+' · '+(drv?'Motorista':S.me.nome);
+  document.getElementById('app').innerHTML={lanc:vLanc,cob:vCob,pass:vPass,cfg:vCfg,hoje:vHoje,minha:vMinha}[tab]();
+  const dt=document.getElementById('dt');if(dt)dt.onchange=()=>{if(dt.value){selDate=dt.value;render()}};
+}
+boot();
+</script>
+</body>
+</html>
