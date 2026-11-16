@@ -8,16 +8,23 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;800&display=swap" rel="stylesheet">
+<script>try{var t=localStorage.getItem('vg_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 <style>
 :root{
   --bg:#EEF1F5;--surface:#fff;--ink:#121A26;--mut:#5B6778;--line:#D8DEE6;--soft:#F5F7FA;
   --pri:#12447A;--pri-ink:#fff;--pri-soft:#E4ECF6;--stripe:#F4B400;
   --ok:#17795A;--ok-soft:#DDF1E8;--warn:#8A5A00;--warn-soft:#FCEFCB;--info:#1F4E9C;--info-soft:#DDE8FA;--bad:#B42318;
+  --avatar-ink:var(--pri);--btn-bg:var(--pri);--link:var(--pri);--nav-on:var(--pri);color-scheme:light;
   --r:14px;--rs:10px;
 }
-@media(prefers-color-scheme:dark){:root{
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0D131B;--surface:#16202C;--ink:#E9EEF4;--mut:#95A3B5;--line:#283545;--soft:#1B2735;
-  --pri:#0E2F57;--pri-soft:#1A2D47;--ok:#2FA67C;--ok-soft:#14352A;--warn:#F0B64D;--warn-soft:#3A2D10;--info:#8DB4F5;--info-soft:#18294A;--bad:#FF8A7A}}
+  --pri:#0E2F57;--pri-soft:#1A2D47;--ok:#2FA67C;--ok-soft:#14352A;--warn:#F0B64D;--warn-soft:#3A2D10;--info:#8DB4F5;--info-soft:#18294A;--bad:#FF8A7A;
+  --avatar-ink:#BBD3F2;--btn-bg:#2B6CB8;--link:#9CC1F2;--nav-on:#9CC1F2;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D131B;--surface:#16202C;--ink:#E9EEF4;--mut:#95A3B5;--line:#283545;--soft:#1B2735;
+  --pri:#0E2F57;--pri-soft:#1A2D47;--ok:#2FA67C;--ok-soft:#14352A;--warn:#F0B64D;--warn-soft:#3A2D10;--info:#8DB4F5;--info-soft:#18294A;--bad:#FF8A7A;
+  --avatar-ink:#BBD3F2;--btn-bg:#2B6CB8;--link:#9CC1F2;--nav-on:#9CC1F2;color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{scroll-padding-bottom:90px}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.45 "Public Sans",system-ui,"Segoe UI",Roboto,sans-serif;padding-bottom:calc(76px + env(safe-area-inset-bottom));font-variant-numeric:tabular-nums}
@@ -31,6 +38,7 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke
 .brand{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .brand b{font-weight:800;font-size:17px;letter-spacing:-.01em}
 .brand .who{font-size:13px;opacity:.8;margin-top:1px}
+.tools{display:flex;gap:8px}
 .icon-btn{background:rgba(255,255,255,.14);color:#fff;border:0;border-radius:var(--rs);min-width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 12px}
 .route{display:flex;align-items:center;gap:10px;margin-top:14px;font-weight:600;font-size:14px}
 .route .dot{width:12px;height:12px;border-radius:50%;border:3px solid #fff;flex:none}
@@ -50,8 +58,7 @@ h3{font-size:15px;font-weight:600;margin:20px 0 8px}
 .item:first-child{border-top:0}
 .item .grow{flex:1;min-width:0}
 .item .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.avatar{width:40px;height:40px;border-radius:50%;background:var(--pri-soft);color:var(--pri);font-weight:800;font-size:14px;display:grid;place-items:center;flex:none}
-@media(prefers-color-scheme:dark){.avatar{color:#BBD3F2}}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--pri-soft);color:var(--avatar-ink);font-weight:800;font-size:14px;display:grid;place-items:center;flex:none}
 .amount{font-weight:800;font-size:18px;white-space:nowrap}
 .actions{display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 14px}
 
@@ -65,11 +72,9 @@ input:focus,select:focus{border-color:var(--pri);background:var(--surface)}
 .field-note{font-size:13px;color:var(--mut);margin-top:6px}
 
 /* Botões */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 16px;border-radius:var(--rs);border:1px solid transparent;background:var(--pri);color:#fff;font-weight:600}
-@media(prefers-color-scheme:dark){.btn{background:#2B6CB8}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 16px;border-radius:var(--rs);border:1px solid transparent;background:var(--btn-bg);color:#fff;font-weight:600}
 .btn.sec{background:var(--surface);color:var(--ink);border-color:var(--line)}
-.btn.ghost{background:transparent;color:var(--pri);padding:0 10px}
-@media(prefers-color-scheme:dark){.btn.ghost{color:#9CC1F2}}
+.btn.ghost{background:transparent;color:var(--link);padding:0 10px}
 .btn.ok{background:var(--ok);color:#fff}
 .btn.bad{background:transparent;color:var(--bad);border-color:var(--bad)}
 .btn.sm{height:38px;padding:0 12px;font-size:14px}
@@ -152,8 +157,7 @@ pre{white-space:pre-wrap;background:var(--soft);border:1px solid var(--line);bor
 nav{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--line);z-index:5;padding-bottom:env(safe-area-inset-bottom)}
 nav .in{max-width:760px;margin:0 auto;display:flex}
 nav button{flex:1;border:0;background:none;color:var(--mut);min-height:62px;padding:8px 4px;font-size:12.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;position:relative}
-nav button.on{color:var(--pri)}
-@media(prefers-color-scheme:dark){nav button.on{color:#9CC1F2}}
+nav button.on{color:var(--nav-on)}
 nav button.on::before{content:"";position:absolute;top:0;left:25%;right:25%;height:3px;border-radius:0 0 3px 3px;background:var(--stripe)}
 
 /* Login */
@@ -166,7 +170,7 @@ nav button.on::before{content:"";position:absolute;top:0;left:25%;right:25%;heig
 </head>
 <body>
 <header class="top"><div class="top-in">
-  <div class="brand"><div><b>Viagem Compartilhada</b><div class="who" id="who"></div></div><button id="sair" class="icon-btn hide" onclick="logout()" aria-label="Sair"></button></div>
+  <div class="brand"><div><b>Viagem Compartilhada</b><div class="who" id="who"></div></div><div class="tools"><button id="tema" class="icon-btn" onclick="toggleTheme()"></button><button id="sair" class="icon-btn hide" onclick="logout()" aria-label="Sair"></button></div></div>
   <div class="route" id="route" aria-label="Rota"></div>
 </div></header>
 <main id="app"></main>
@@ -185,6 +189,8 @@ const IC={
  eye:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
  down:'<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>',
  l:'<path d="M15 5l-7 7 7 7"/>',r:'<path d="M9 5l7 7-7 7"/>',
+ sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+ moon:'<path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/>',
  bus:'<rect x="4" y="4" width="16" height="13" rx="3"/><path d="M4 11h16M8 20v-3M16 20v-3"/><circle cx="8.5" cy="14" r=".6"/><circle cx="15.5" cy="14" r=".6"/>'
 };
 const ic=n=>'<svg class="i" viewBox="0 0 24 24" aria-hidden="true">'+IC[n]+'</svg>';
@@ -254,6 +260,22 @@ function sendWA(pid,i){const p=S.pass.find(x=>x.id===pid);window.open('https://w
 function chrome(on){document.getElementById('nav').classList.toggle('hide',!on);document.getElementById('sair').classList.toggle('hide',!on)}
 function setRoute(o,d){document.getElementById('route').innerHTML='<span class="dot"></span><span class="t">'+esc(o)+'</span><span class="line"></span><span class="t">'+esc(d)+'</span><span class="dot"></span>'}
 document.getElementById('sair').innerHTML=ic('out');
+// ---------- Tema claro / escuro ----------
+const darkMQ=window.matchMedia?matchMedia('(prefers-color-scheme: dark)'):null;
+const isDark=()=>{const t=document.documentElement.getAttribute('data-theme');return t?t==='dark':!!(darkMQ&&darkMQ.matches)};
+function paintTheme(){
+  const b=document.getElementById('tema'),d=isDark();
+  b.innerHTML=ic(d?'sun':'moon');b.setAttribute('aria-label',d?'Mudar para o tema claro':'Mudar para o tema escuro');b.title=b.getAttribute('aria-label');
+  const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=d?'#0E2F57':'#12447A';
+}
+function toggleTheme(){
+  const next=isDark()?'light':'dark';
+  document.documentElement.setAttribute('data-theme',next);
+  try{localStorage.setItem('vg_theme',next)}catch(e){}
+  paintTheme();
+}
+if(darkMQ&&darkMQ.addEventListener)darkMQ.addEventListener('change',paintTheme);
+paintTheme();
 async function boot(){
   chrome(false);setRoute('Serra Azul','Ribeirão Preto');document.getElementById('who').textContent='';
   if(token){try{await load();return}catch(e){token=''}}
