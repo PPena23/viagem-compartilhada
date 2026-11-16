@@ -1,3 +1,1 @@
-{
-  "rewrites": [{ "source": "/api/:path((?!index$).*)", "destination": "/api/index?p=:path" }]
-}
+{}

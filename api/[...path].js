@@ -2,7 +2,7 @@
 const { handle } = require('../lib/core');
 module.exports = async (req, res) => {
   const u = new URL(req.url, 'http://x');
-  const pathname = u.searchParams.get('p') ? '/api/' + u.searchParams.get('p') : u.pathname; // a rewrite passa o caminho em ?p=
+  const pathname = u.pathname;
   let body = '';
   if (req.method !== 'GET') { for await (const c of req) { body += c; if (body.length > 1e5) break; } }
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0] || req.socket.remoteAddress;
