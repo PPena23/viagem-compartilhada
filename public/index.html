@@ -369,8 +369,8 @@ function vMotoristas(){
   for(const d of S.drivers){
     const me=d.id===S.me.id;
     h+='<div class="item" style="flex-wrap:wrap"><div class="avatar">'+esc(initials(d.nome))+'</div><div class="grow"><div class="nm">'+esc(d.nome)+(me?' <span class="mut">(você)</span>':'')+'</div><div class="mut sm">Usuário: '+esc(d.user)+'</div></div>'
-     +(me?'':'<button class="btn sec sm" onclick="resetId=resetId===''+d.id+''?null:''+d.id+'';render()">Nova senha</button><button class="btn bad sm" onclick="delDriver(''+d.id+'')">Remover</button>')
-     +(resetId===d.id?'<div style="flex-basis:100%;display:flex;gap:8px"><input id="rp" type="password" placeholder="Nova senha (mín. 6)" autocomplete="new-password" aria-label="Nova senha de '+esc(d.nome)+'"><button class="btn sm" style="height:48px" onclick="resetDriver(''+d.id+'')">Salvar</button></div>':'')+'</div>';
+     +(me?'':'<button class="btn sec sm" data-id="'+d.id+'" onclick="resetId=resetId===this.dataset.id?null:this.dataset.id;render()">Nova senha</button><button class="btn bad sm" data-id="'+d.id+'" onclick="delDriver(this.dataset.id)">Remover</button>')
+     +(resetId===d.id?'<div style="flex-basis:100%;display:flex;gap:8px"><input id="rp" type="password" placeholder="Nova senha (mín. 6)" autocomplete="new-password" aria-label="Nova senha de '+esc(d.nome)+'"><button class="btn sm" style="height:48px" data-id="'+d.id+'" onclick="resetDriver(this.dataset.id)">Salvar</button></div>':'')+'</div>';
   }
   h+='<div class="pad" style="border-top:1px solid var(--line)"><h3 style="margin-top:0">Adicionar motorista</h3>'
    +'<label for="dn">Nome</label><input id="dn" autocomplete="off">'
