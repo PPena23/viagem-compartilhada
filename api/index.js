@@ -1,7 +1,8 @@
 // Função serverless da Vercel: recebe todas as chamadas /api/*
 const { handle } = require('../lib/core');
 module.exports = async (req, res) => {
-  const pathname = new URL(req.url, 'http://x').pathname;
+  const u = new URL(req.url, 'http://x');
+  const pathname = u.searchParams.get('p') ? '/api/' + u.searchParams.get('p') : u.pathname; // a rewrite passa o caminho em ?p=
   let body = '';
   if (req.method !== 'GET') { for await (const c of req) { body += c; if (body.length > 1e5) break; } }
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0] || req.socket.remoteAddress;
