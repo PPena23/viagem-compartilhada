@@ -6,7 +6,7 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.
 http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname.startsWith('/api/')) {
-    let body = ''; req.on('data', c => { body += c; if (body.length > 1e5) req.destroy(); });
+    let body = ''; req.on('data', c => { body += c; if (body.length > 3e5) req.destroy(); });
     req.on('end', async () => {
       const [code, obj] = await handle(req.method, url.pathname, req.headers.authorization, body, req.socket.remoteAddress);
       res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(obj));
