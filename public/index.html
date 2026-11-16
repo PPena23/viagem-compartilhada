@@ -249,16 +249,18 @@ async function boot(){
   const st=await api('GET','/api/status');
   const logo='<div class="mark-big">'+ic('bus')+'</div>';
   document.getElementById('app').innerHTML=st.setup?`
-  <div class="surface pad login">${logo}<h2>Criar acesso do motorista</h2><div class="mut">Defina a senha de quem administra as viagens. Só o motorista vê os dados de todos.</div>
-  <label for="lp">Senha do motorista <small>(mínimo de 6 caracteres)</small></label><input id="lp" type="password" autocomplete="new-password">
+  <div class="surface pad login">${logo}<h2>Criar acesso do motorista</h2><div class="mut">Defina quem administra as viagens. Só motoristas veem os dados de todos. Outros motoristas podem ser adicionados depois em Config.</div>
+  <label for="sn">Seu nome</label><input id="sn" autocomplete="name">
+  <label for="su">Usuário <small>(letras e números, sem espaços)</small></label><input id="su" value="motorista" autocapitalize="none" autocomplete="username">
+  <label for="lp">Senha <small>(mínimo de 6 caracteres)</small></label><input id="lp" type="password" autocomplete="new-password">
   <div class="err" id="le" role="alert"></div><button class="btn block" onclick="doSetup()">Criar senha</button></div>`:`
-  <div class="surface pad login">${logo}<h2>Entrar</h2><div class="mut">Passageiros entram com o telefone e o PIN. O motorista entra com a palavra “motorista” e a senha.</div>
-  <label for="lu">Telefone ou motorista</label><input id="lu" autocapitalize="none" autocomplete="username" placeholder="(16) 99999-9999">
+  <div class="surface pad login">${logo}<h2>Entrar</h2><div class="mut">Passageiros entram com o telefone e o PIN. Motoristas entram com o usuário e a senha.</div>
+  <label for="lu">Telefone ou usuário do motorista</label><input id="lu" autocapitalize="none" autocomplete="username" placeholder="(16) 99999-9999">
   <label for="lp">Senha ou PIN</label><input id="lp" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
   <div class="err" id="le" role="alert"></div><button class="btn block" onclick="doLogin()">Entrar</button></div>`;
 }
-async function doSetup(){try{await api('POST','/api/setup',{pin:lp.value});await boot()}catch(e){le.textContent=e.message}}
-async function doLogin(){try{const r=await api('POST','/api/login',{user:lu.value.trim().toLowerCase()==='motorista'?'motorista':lu.value,pin:lp.value});token=r.token;localStorage.setItem('vg_token',token);tab='';await load()}catch(e){le.textContent=e.message}}
+async function doSetup(){try{await api('POST','/api/setup',{nome:sn.value,user:su.value,pin:lp.value});await boot()}catch(e){le.textContent=e.message}}
+async function doLogin(){try{const r=await api('POST','/api/login',{user:lu.value,pin:lp.value});token=r.token;localStorage.setItem('vg_token',token);tab='';await load()}catch(e){le.textContent=e.message}}
 async function logout(){try{await api('POST','/api/logout')}catch(e){}token='';localStorage.removeItem('vg_token');S=null;boot()}
 
 // ---------- Motorista: embarques ----------
@@ -358,7 +360,39 @@ function vCfg(){
   +'<label for="ca">Início do ciclo</label><input type="date" id="ca" value="'+c.anchor+'"><div class="field-note">Vale a segunda-feira da semana escolhida. No ciclo de 14 dias, a cobrança fecha na sexta da segunda semana.</div>'
   +'<label for="cp">Chave Pix <small>(aparece na mensagem de cobrança)</small></label><input id="cp" value="'+esc(c.pix)+'">'
   +'<label for="cm">Texto final da mensagem <small>(opcional)</small></label><input id="cm" value="'+esc(c.msgFim)+'">'
-  +'<div class="actions" style="padding:16px 0 0"><button class="btn" onclick="saveCfg()">Salvar configurações</button></div></div>';
+  +'<div class="actions" style="padding:16px 0 0"><button class="btn" onclick="saveCfg()">Salvar configurações</button></div></div>'
+  +vMotoristas()+vConta();
+}
+let resetId=null;
+function vMotoristas(){
+  let h='<div class="surface"><div class="pad" style="padding-bottom:4px"><h2>Motoristas</h2><div class="mut">Todos os motoristas veem os mesmos passageiros e cobranças.</div></div>';
+  for(const d of S.drivers){
+    const me=d.id===S.me.id;
+    h+='<div class="item" style="flex-wrap:wrap"><div class="avatar">'+esc(initials(d.nome))+'</div><div class="grow"><div class="nm">'+esc(d.nome)+(me?' <span class="mut">(você)</span>':'')+'</div><div class="mut sm">Usuário: '+esc(d.user)+'</div></div>'
+     +(me?'':'<button class="btn sec sm" onclick="resetId=resetId===''+d.id+''?null:''+d.id+'';render()">Nova senha</button><button class="btn bad sm" onclick="delDriver(''+d.id+'')">Remover</button>')
+     +(resetId===d.id?'<div style="flex-basis:100%;display:flex;gap:8px"><input id="rp" type="password" placeholder="Nova senha (mín. 6)" autocomplete="new-password" aria-label="Nova senha de '+esc(d.nome)+'"><button class="btn sm" style="height:48px" onclick="resetDriver(''+d.id+'')">Salvar</button></div>':'')+'</div>';
+  }
+  h+='<div class="pad" style="border-top:1px solid var(--line)"><h3 style="margin-top:0">Adicionar motorista</h3>'
+   +'<label for="dn">Nome</label><input id="dn" autocomplete="off">'
+   +'<div class="grid2"><div><label for="du">Usuário</label><input id="du" autocapitalize="none" autocomplete="off"></div><div><label for="dp">Senha inicial</label><input id="dp" type="password" autocomplete="new-password"></div></div>'
+   +'<div class="field-note">Passe o usuário e a senha ao novo motorista. Ele pode trocar a senha em Minha conta.</div>'
+   +'<div class="actions" style="padding:14px 0 0"><button class="btn" onclick="addDriver()">Adicionar motorista</button></div></div></div>';
+  return h;
+}
+async function addDriver(){try{await api('POST','/api/driver',{nome:dn.value,user:du.value,pin:dp.value});await load();toast('Motorista adicionado')}catch(e){toast(e.message)}}
+async function delDriver(id){if(!confirm('Remover este motorista? Ele perde o acesso imediatamente.'))return;try{await api('POST','/api/driver/delete',{id});await load();toast('Motorista removido')}catch(e){toast(e.message)}}
+async function resetDriver(id){try{await api('POST','/api/driver/reset',{id,pin:rp.value});resetId=null;await load();toast('Senha alterada')}catch(e){toast(e.message)}}
+function vConta(){
+  const drv=S.role==='driver';
+  return '<div class="surface pad"><h2>Minha conta</h2><div class="mut">'+esc(S.me.nome)+(drv?', usuário '+esc(S.me.user):'')+'</div>'
+   +'<label for="pa">'+(drv?'Senha atual':'PIN atual')+'</label><input id="pa" type="password" autocomplete="current-password" '+(drv?'':'inputmode="numeric"')+'>'
+   +'<label for="pn1">'+(drv?'Nova senha <small>(mínimo de 6 caracteres)</small>':'Novo PIN <small>(mínimo de 4 dígitos)</small>')+'</label><input id="pn1" type="password" autocomplete="new-password" '+(drv?'':'inputmode="numeric"')+'>'
+   +'<label for="pn2">Repita a nova '+(drv?'senha':'PIN')+'</label><input id="pn2" type="password" autocomplete="new-password" '+(drv?'':'inputmode="numeric"')+'>'
+   +'<div class="actions" style="padding:16px 0 0"><button class="btn" onclick="changePw()">Alterar '+(drv?'senha':'PIN')+'</button></div><div class="field-note">Ao alterar, os outros aparelhos conectados com esta conta são desconectados.</div></div>';
+}
+async function changePw(){
+  if(pn1.value!==pn2.value)return toast('As senhas novas não são iguais');
+  try{await api('POST','/api/password',{atual:pa.value,nova:pn1.value});pa.value=pn1.value=pn2.value='';toast('Senha alterada')}catch(e){toast(e.message)}
 }
 async function saveCfg(){
   try{await api('POST','/api/cfg',{fare:cf.value.replace(',','.'),origem:co.value,destino:cd.value,ciclo:cc.value,anchor:ca.value,pix:cp.value,msgFim:cm.value});periodIdx=null;await load();toast('Configurações salvas')}catch(e){toast(e.message)}
@@ -398,14 +432,14 @@ function render(){
   if(!S)return;
   if(!selDate)selDate=S.today;
   const drv=S.role==='driver';
-  const tabs=drv?[['lanc','Embarques','circle'],['cob','Cobrança','receipt'],['pass','Passageiros','users'],['cfg','Config','sliders']]:[['hoje','Hoje','circle'],['minha','Minha cobrança','receipt']];
+  const tabs=drv?[['lanc','Embarques','circle'],['cob','Cobrança','receipt'],['pass','Passageiros','users'],['cfg','Config','sliders']]:[['hoje','Hoje','circle'],['minha','Minha cobrança','receipt'],['conta','Minha conta','users']];
   if(!tabs.some(t=>t[0]===tab))tab=tabs[0][0];
   chrome(true);
   document.getElementById('navin').innerHTML=tabs.map(([k,t,i])=>'<button data-t="'+k+'" class="'+(k===tab?'on':'')+'"'+(k===tab?' aria-current="page"':'')+'>'+ic(i)+t+'</button>').join('');
   document.querySelectorAll('#navin button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render();scrollTo(0,0)});
   setRoute(S.cfg.origem,S.cfg.destino);
-  document.getElementById('who').textContent=drv?'Motorista':S.me.nome;
-  document.getElementById('app').innerHTML={lanc:vLanc,cob:vCob,pass:vPass,cfg:vCfg,hoje:vHoje,minha:vMinha}[tab]();
+  document.getElementById('who').textContent=S.me.nome;
+  document.getElementById('app').innerHTML={lanc:vLanc,cob:vCob,pass:vPass,cfg:vCfg,hoje:vHoje,minha:vMinha,conta:vConta}[tab]();
   const dt=document.getElementById('dt');if(dt)dt.onchange=()=>{if(dt.value){selDate=dt.value;render()}};
 }
 boot();
